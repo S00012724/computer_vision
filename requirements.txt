@@ -1,0 +1,10 @@
+opencv-python>=4.7.0.72
+scikit-learn>=1.2.2
+numpy>=1.24.2
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+gradio>=5.0.0
+tensorflow>=2.16.0
+matplotlib>=3.8.0
+pytest>=8.0.0
