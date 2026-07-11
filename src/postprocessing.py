@@ -9,8 +9,6 @@ P(needs_collection)
 
 URGENT_RISK_THRESHOLD = 0.70
 LOW_PRIORITY_RISK_THRESHOLD = 0.15
-HIGH_RISK_THRESHOLD = URGENT_RISK_THRESHOLD
-MEDIUM_RISK_THRESHOLD = 0.35
 
 # Scores below the low threshold stay automatic as low priority. Scores above
 # the urgent threshold become collection priority. The middle band goes to
@@ -65,11 +63,17 @@ def _needs_collection_score(
     return float(confidence) if class_name == "needs_collection" else 1.0 - float(confidence)
 
 
-def _risk_level(risk_score: float | None) -> str:
+def _risk_level(
+    risk_score: float | None,
+    urgent_risk_threshold: float,
+    low_priority_risk_threshold: float,
+) -> str:
     """Map a numeric collection-risk score to an API label
 
     Args:
         risk_score: Numeric needs_collection risk score or None
+        urgent_risk_threshold: Minimum score classified as high risk
+        low_priority_risk_threshold: Maximum score classified as low risk
 
     Returns:
         Risk label for API output
@@ -77,9 +81,9 @@ def _risk_level(risk_score: float | None) -> str:
 
     if risk_score is None:
         return "unknown"
-    if risk_score >= HIGH_RISK_THRESHOLD:
+    if risk_score >= urgent_risk_threshold:
         return "high"
-    if risk_score >= MEDIUM_RISK_THRESHOLD:
+    if risk_score > low_priority_risk_threshold:
         return "medium"
     return "low"
 
@@ -109,7 +113,11 @@ def postprocess_prediction(
     """
 
     risk_score = _needs_collection_score(class_name, confidence, class_scores)
-    risk_level = _risk_level(risk_score)
+    risk_level = _risk_level(
+        risk_score,
+        urgent_risk_threshold,
+        low_priority_risk_threshold,
+    )
 
     if risk_score is None:
         priority = "review"

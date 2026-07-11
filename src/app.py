@@ -1,3 +1,4 @@
+import logging
 import time
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
@@ -20,6 +21,14 @@ from src.preprocessing import image_to_cnn_tensor
 # FastAPI loads the model at startup and reuses it for every request. Loading
 # the Keras file per request would make prediction much slower
 MODEL = None
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+ALLOWED_IMAGE_CONTENT_TYPES = frozenset({
+    "image/bmp",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+})
+LOGGER = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -151,7 +160,8 @@ def _cpu_bound_prediction(image_bgr: np.ndarray):
         image_bgr,
         image_size=CNN_IMAGE_SIZE,
     ).reshape(1, *CNN_IMAGE_SIZE, 3)
-    probabilities = MODEL.predict(tensor, verbose=0)[0]
+    model_output = MODEL(tensor, training=False)
+    probabilities = np.asarray(model_output.numpy())[0]
     prediction = int(np.argmax(probabilities))
     confidence = float(probabilities[prediction])
     scores = {
@@ -243,7 +253,19 @@ async def predict_fill_level(file: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail="Model is not loaded.")
 
     try:
-        contents = await file.read()
+        if file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+            raise HTTPException(
+                status_code=415,
+                detail="Unsupported image type.",
+            )
+
+        contents = await file.read(MAX_UPLOAD_BYTES + 1)
+        if len(contents) > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="Image exceeds the 10 MB upload limit.",
+            )
+
         image_array = np.frombuffer(contents, np.uint8)
         image_bgr = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
@@ -255,7 +277,8 @@ async def predict_fill_level(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
+        LOGGER.exception("Prediction failed for upload %r.", file.filename)
+        raise HTTPException(status_code=500, detail="Prediction failed.") from error
 
 
 with gr.Blocks(title="Waste-bin Fill-Level Detection") as gradio_app:
