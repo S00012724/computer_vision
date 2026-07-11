@@ -4,7 +4,6 @@ Collection trucks waste time and fuel when they stop at bins that still have roo
 
 This prototype classifies one waste-bin image as `has_space` or `needs_collection`. A fixed threshold policy then labels the model output as `urgent`, `low`, or `review`. The `review` value is an API label; the application does not implement a review queue or assign cases to an operator.
 
-
 ## Dataset
 
 The images are mix of multiple public datasets. Every image has one fill-level tag:
@@ -117,14 +116,20 @@ The saved CNN reproduces the following scikit-learn metrics on the evaluation sp
 
 The HOG values below were reproduced with the pinned environment in [requirements.txt](requirements.txt).
 
+### Scikit-learn metric summary
+
 | Model | Input or features | Accuracy | Macro precision | Macro recall | Macro F1 |
 | --- | --- | ---: | ---: | ---: | ---: |
 | ResNet50 transfer CNN | RGB `96 x 96` pixels | 0.8788 | 0.8725 | 0.8501 | 0.8596 |
 | OpenCV HOG + Linear SVM | HOG from `64 x 64` grayscale images | 0.7053 | 0.6713 | 0.6762 | 0.6734 |
 
-![Scikit-learn metric summary](report/assets/metric_summary.png)
+### Confusion matrix
 
-![Confusion matrix](report/assets/confusion_matrix.png)
+| Actual class | Predicted `has_space` | Predicted `needs_collection` | Total |
+| --- | ---: | ---: | ---: |
+| `has_space` | 705 | 48 | 753 |
+| `needs_collection` | 89 | 288 | 377 |
+| **Total** | **794** | **336** | **1,130** |
 
 The CNN correctly classifies 705 of 753 `has_space` images and 288 of 377 `needs_collection` images. It produces 48 false collection alarms and misses 89 full-bin cases.
 
